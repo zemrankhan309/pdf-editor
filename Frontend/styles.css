@@ -1,0 +1,85 @@
+/* ---------------------------------------------------------
+   GENERAL PAGE STYLING
+--------------------------------------------------------- */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+}
+
+header {
+    background: #222;
+    color: white;
+    padding: 15px 20px;
+    font-size: 20px;
+}
+
+/* ---------------------------------------------------------
+   CONTROLS
+--------------------------------------------------------- */
+#controls {
+    display: flex;
+    gap: 10px;
+    padding: 15px 20px;
+}
+
+#controls button {
+    padding: 8px 14px;
+    border: none;
+    background: #0078ff;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#controls button:hover {
+    background: #005fcc;
+}
+
+/* ---------------------------------------------------------
+   PDF CONTAINER
+--------------------------------------------------------- */
+#pdfContainer {
+    position: relative;
+    width: fit-content;
+    margin: 20px auto;
+    background: white;
+    padding: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+}
+
+/* ---------------------------------------------------------
+   PDF CANVAS
+--------------------------------------------------------- */
+#pdfCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    display: block;
+    background: white;
+    border: 1px solid #ccc;
+}
+
+/* ---------------------------------------------------------
+   TEXT LAYER (editable overlay)
+--------------------------------------------------------- */
+#textLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    pointer-events: none; /* overlay ignores clicks except text items */
+}
+
+/* Editable text boxes */
+.text-item {
+    position: absolute;
+    background: rgba(255, 255, 0, 0.3);
+    padding: 2px 4px;
+    border: 1px dashed #333;
+    cursor: text;
+    white-space: nowrap;
+    font-size: 12px;
+    pointer-events: auto; /* allow editing */
+}

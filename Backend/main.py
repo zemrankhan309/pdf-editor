@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
@@ -6,7 +6,6 @@ import tempfile
 
 from services.pdf_extract import extract_text_objects
 from services.pdf_edit import apply_edits
-from services.pdf_export import export_pdf
 
 app = FastAPI()
 
@@ -42,16 +41,18 @@ async def edit_pdf(payload: dict):
     edits = payload.get("edits", [])
     
     edited_pdf_path = file_path.replace(".pdf", "_edited.pdf")
-    
-    # FIXED: Arguments match pdf_edit.py parameter structure perfectly
     apply_edits(edits, file_path, edited_pdf_path)
     
     return {"edited_pdf_path": edited_pdf_path}
 
 
+# FIXED: Explicitly stream the edited file directly back to the user's browser
 @app.get("/export")
 def export(path: str):
-    return export_pdf(path)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Edited file not found.")
+    return FileResponse(path, media_type="application/pdf", filename="edited_document.pdf")
+
 
 if __name__ == "__main__":
     import uvicorn

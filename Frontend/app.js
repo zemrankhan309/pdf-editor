@@ -8,11 +8,9 @@ let currentPdfPath = null;
 let textObjects = [];
 let editedObjects = [];
 
-// FIXED: Increased scale factor to 1.5 for ultra-crisp display quality
 const GLOBAL_SCALE = 1.5;
 
 async function renderPDF(file) {
-    console.log("Rendering crisp PDF...");
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
@@ -38,7 +36,6 @@ function renderTextObjects() {
         div.contentEditable = true;
         div.innerText = obj.text;
 
-        // Position alignment mappings
         div.style.left = (obj.x * GLOBAL_SCALE) + "px";
         div.style.top = (obj.y * GLOBAL_SCALE) + "px";
         div.style.width = (obj.width * GLOBAL_SCALE) + "px";
@@ -46,7 +43,7 @@ function renderTextObjects() {
         div.style.fontSize = ((obj.size || 11) * GLOBAL_SCALE) + "px";
 
         div.oninput = () => {
-            div.classList.add("edited"); // Keep visible on screen after change
+            div.classList.add("edited");
             editedObjects[index] = {
                 page: obj.page,
                 x: obj.x,
@@ -74,30 +71,44 @@ document.getElementById("pdfUpload").addEventListener("change", async (event) =>
     
     currentPdfPath = data.file_path;
     textObjects = data.text_objects;
-    editedObjects = []; // Reset workspace tracking entries
+    editedObjects = []; 
 
     await renderPDF(file);
     renderTextObjects();
 });
 
-document.getElementById("saveEdits").addEventListener("click", async () => {
-    if (!currentPdfPath) return alert("Upload a PDF first.");
+// FIXED: Combined Save & Download actions into one single workflow block
+document.getElementById("downloadPdf").addEventListener("click", async () => {
+    if (!currentPdfPath) {
+        return alert("Please upload a PDF file first.");
+    }
 
-    // Filter out blank array indexes before sending data to backend
+    // 1. Gather all modifications made on-screen
     const cleanPayloadEdits = editedObjects.filter(item => item !== undefined && item !== null);
 
-    const res = await fetch(`${backendUrl}/edit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file_path: currentPdfPath, edits: cleanPayloadEdits })
+    try {
+        // 2. Post updates directly to the server workspace
+        const res = await fetch(`${backendUrl}/edit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ file_path: currentPdfPath, edits: cleanPayloadEdits })
+        });
+
+        const data = await res.json();
+        const verifiedPath = data.edited_pdf_path;
+
+        // 3. Immediately trigger document download stream
+        window.location.href = `${backendUrl}/export?path=${encodeURIComponent(verifiedPath)}`;
+
+    } catch (err) {
+        console.error("Export failure error details:", err);
+        alert("Failed to build your edited PDF document download.");
+    }
+});
+
+// Optional fallback button catch
+if(document.getElementById("saveEdits")) {
+    document.getElementById("saveEdits").addEventListener("click", () => {
+        alert("Changes are automatically saved when you click Download!");
     });
-
-    const data = await res.json();
-    window.editedPdfPath = data.edited_pdf_path;
-    alert("Edits saved successfully!");
-});
-
-document.getElementById("downloadPdf").addEventListener("click", () => {
-    if (!window.editedPdfPath) return alert("Save edits first.");
-    window.location.href = `${backendUrl}/export?path=${window.editedPdfPath}`;
-});
+}

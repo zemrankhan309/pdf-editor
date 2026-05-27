@@ -10,7 +10,6 @@ def extract_text_objects(pdf_path):
     for page_number in range(len(doc)):
         page = doc[page_number]
 
-        # 1. TRY NORMAL TEXT EXTRACTION
         blocks = page.get_text("dict")["blocks"]
         normal_text_found = False
 
@@ -36,7 +35,7 @@ def extract_text_objects(pdf_path):
                         "y": float(y0),
                         "width": float(x1 - x0),
                         "height": float(y1 - y0),
-                        "size": float(span.get("size", 11))  # <-- CAPTURE EXACT FONT SIZE
+                        "size": float(span.get("size", 11))  # <-- Captures exact original font size
                     })
 
                     normal_text_found = True
@@ -44,7 +43,7 @@ def extract_text_objects(pdf_path):
         if normal_text_found:
             continue
 
-        # 2. OCR FALLBACK (for scanned PDFs)
+        # OCR Fallback
         pix = page.get_pixmap()
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
@@ -66,7 +65,7 @@ def extract_text_objects(pdf_path):
                 "y": float(y),
                 "width": float(w),
                 "height": float(h),
-                "size": 12  # Default estimation for scanned documents
+                "size": 11
             })
 
     doc.close()

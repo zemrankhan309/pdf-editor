@@ -42,7 +42,7 @@ def extract_text_objects(pdf_path):
 
                     normal_text_found = True
 
-        # If real text was found → skip OCR
+        # If real text was found → skip OCR fallback processing
         if normal_text_found:
             continue
 

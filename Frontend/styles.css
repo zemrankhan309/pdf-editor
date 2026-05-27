@@ -52,9 +52,7 @@ header {
    PDF CANVAS
 --------------------------------------------------------- */
 #pdfCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative; /* FIXED: Anchors parent height preventing element disappearance */
     z-index: 1;
     display: block;
     background: white;
@@ -66,8 +64,8 @@ header {
 --------------------------------------------------------- */
 #textLayer {
     position: absolute;
-    top: 0;
-    left: 0;
+    top: 10px; /* Offset matching the container padding */
+    left: 10px;
     z-index: 10;
     pointer-events: none; /* overlay ignores clicks except text items */
 }
@@ -75,11 +73,13 @@ header {
 /* Editable text boxes */
 .text-item {
     position: absolute;
-    background: rgba(255, 255, 0, 0.3);
-    padding: 2px 4px;
-    border: 1px dashed #333;
+    background: rgba(255, 255, 0, 0.2);
+    padding: 0px;
+    border: 1px dashed #ff0000;
     cursor: text;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 11px;
+    font-family: sans-serif;
+    color: black;
     pointer-events: auto; /* allow editing */
 }

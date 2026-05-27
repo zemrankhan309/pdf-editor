@@ -41,12 +41,17 @@ async def upload_pdf(file: UploadFile = File(...)):
     }
 
 
-
 @app.post("/edit")
 async def edit_pdf(payload: dict):
     file_path = payload["file_path"]
     edits = payload.get("edits", [])
-    edited_pdf_path = apply_edits(file_path, edits)
+    
+    # Generate a unique target filename output destination
+    edited_pdf_path = file_path.replace(".pdf", "_edited.pdf")
+    
+    # FIXED: Order of parameters updated to match the definition in pdf_edit.py
+    apply_edits(edits, file_path, edited_pdf_path)
+    
     return {"edited_pdf_path": edited_pdf_path}
 
 

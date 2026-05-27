@@ -1,5 +1,6 @@
+// NO IMPORT STATEMENTS AT THE TOP (Fixes the Uncaught SyntaxError)
 console.log("CHECK:", document.getElementById("pdfUpload"));
-console.log("🔥 app.js loaded");
+console.log("🔥 app.js loaded successfully");
 
 const backendUrl = "http://127.0.0.1:8000";
 
@@ -64,11 +65,14 @@ function renderTextObjects() {
         div.style.height = (obj.height * scale) + "px";
 
         div.oninput = () => {
+            // FIXED: Key names rewritten to support backend parser expectations
             editedObjects[index] = {
                 page: obj.page,
                 x: obj.x,
                 y: obj.y,
-                new_text: div.innerText
+                width: obj.width,
+                height: obj.height,
+                text: div.innerText
             };
         };
 
@@ -85,28 +89,32 @@ document.getElementById("pdfUpload").addEventListener("change", async (event) =>
     const file = event.target.files[0];
     if (!file) return;
 
-    console.log("📂 Selected:", file.name);
+    console.log("📂 Selected file:", file.name);
 
-    // Upload to backend
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${backendUrl}/upload`, {
-        method: "POST",
-        body: formData
-    });
+    try {
+        const res = await fetch(`${backendUrl}/upload`, {
+            method: "POST",
+            body: formData
+        });
 
-    const data = await res.json();
-    currentPdfPath = data.file_path;
-    textObjects = data.text_objects;
+        const data = await res.json();
+        currentPdfPath = data.file_path;
+        textObjects = data.text_objects;
+        editedObjects = new Array(textObjects.length).fill(null); // Initialize clean tracker array
 
-    console.log("BACKEND RESPONSE:", data);
+        console.log("BACKEND RESPONSE:", data);
 
-    // Render PDF
-    await renderPDF(file);
+        // Render PDF background image layer
+        await renderPDF(file);
 
-    // Render overlay
-    renderTextObjects();
+        // Render editable dynamic overlay layer boxes
+        renderTextObjects();
+    } catch (err) {
+        console.error("Upload error connection failure:", err);
+    }
 });
 
 // ------------------------------
@@ -118,9 +126,12 @@ document.getElementById("saveEdits").addEventListener("click", async () => {
         return;
     }
 
+    // Filter out array indices that weren't changed
+    const cleanEdits = editedObjects.filter(item => item !== null);
+
     const payload = {
         file_path: currentPdfPath,
-        edits: editedObjects
+        edits: cleanEdits
     };
 
     const res = await fetch(`${backendUrl}/edit`, {
@@ -132,7 +143,7 @@ document.getElementById("saveEdits").addEventListener("click", async () => {
     const data = await res.json();
     window.editedPdfPath = data.edited_pdf_path;
 
-    alert("Edits saved!");
+    alert("Edits saved! Ready to download.");
 });
 
 // ------------------------------
@@ -144,5 +155,5 @@ document.getElementById("downloadPdf").addEventListener("click", () => {
         return;
     }
 
-    window.location.href = `${backendUrl}/export?path=${window.editedPdfPath}`;
+    window.location.href = `${backendUrl}/export?path=${encodeURIComponent(window.editedPdfPath)}`;
 });

@@ -10,9 +10,7 @@ def extract_text_objects(pdf_path):
     for page_number in range(len(doc)):
         page = doc[page_number]
 
-        # ----------------------------------------------------
-        # 1. TRY NORMAL TEXT EXTRACTION (PyMuPDF structured)
-        # ----------------------------------------------------
+        # 1. TRY NORMAL TEXT EXTRACTION
         blocks = page.get_text("dict")["blocks"]
         normal_text_found = False
 
@@ -27,7 +25,7 @@ def extract_text_objects(pdf_path):
                 for span in line["spans"]:
                     text = span.get("text", "").strip()
                     if not text:
-                        continue  # skip empty spans
+                        continue 
 
                     x0, y0, x1, y1 = span["bbox"]
 
@@ -37,21 +35,18 @@ def extract_text_objects(pdf_path):
                         "x": float(x0),
                         "y": float(y0),
                         "width": float(x1 - x0),
-                        "height": float(y1 - y0)
+                        "height": float(y1 - y0),
+                        "size": float(span.get("size", 11))  # <-- CAPTURE EXACT FONT SIZE
                     })
 
                     normal_text_found = True
 
-        # If real text was found → skip OCR fallback processing
         if normal_text_found:
             continue
 
-        # ----------------------------------------------------
         # 2. OCR FALLBACK (for scanned PDFs)
-        # ----------------------------------------------------
         pix = page.get_pixmap()
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-
         ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
 
         for i in range(len(ocr_data["text"])):
@@ -70,7 +65,8 @@ def extract_text_objects(pdf_path):
                 "x": float(x),
                 "y": float(y),
                 "width": float(w),
-                "height": float(h)
+                "height": float(h),
+                "size": 12  # Default estimation for scanned documents
             })
 
     doc.close()

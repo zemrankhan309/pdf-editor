@@ -1,42 +1,4 @@
 /* ---------------------------------------------------------
-   GENERAL PAGE STYLING
---------------------------------------------------------- */
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f4f4f4;
-}
-
-header {
-    background: #222;
-    color: white;
-    padding: 15px 20px;
-    font-size: 20px;
-}
-
-/* ---------------------------------------------------------
-   CONTROLS
---------------------------------------------------------- */
-#controls {
-    display: flex;
-    gap: 10px;
-    padding: 15px 20px;
-}
-
-#controls button {
-    padding: 8px 14px;
-    border: none;
-    background: #0078ff;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#controls button:hover {
-    background: #005fcc;
-}
-
-/* ---------------------------------------------------------
    PDF CONTAINER
 --------------------------------------------------------- */
 #pdfContainer {
@@ -44,42 +6,55 @@ header {
     width: fit-content;
     margin: 20px auto;
     background: white;
-    padding: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    padding: 0px; /* Flush layout alignment */
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
 }
 
-/* ---------------------------------------------------------
-   PDF CANVAS
---------------------------------------------------------- */
 #pdfCanvas {
-    position: relative; /* FIXED: Anchors parent height preventing element disappearance */
-    z-index: 1;
     display: block;
     background: white;
-    border: 1px solid #ccc;
+}
+
+#textLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
 }
 
 /* ---------------------------------------------------------
-   TEXT LAYER (editable overlay)
+   INTERACTIVE EDITABLE TEXT ITEMS
 --------------------------------------------------------- */
-#textLayer {
-    position: absolute;
-    top: 10px; /* Offset matching the container padding */
-    left: 10px;
-    z-index: 10;
-    pointer-events: none; /* overlay ignores clicks except text items */
-}
-
-/* Editable text boxes */
 .text-item {
     position: absolute;
-    background: rgba(255, 255, 0, 0.2);
-    padding: 0px;
-    border: 1px dashed #ff0000;
+    background: transparent; /* Blends perfectly with underlying canvas */
+    border: 1px solid transparent;
+    color: transparent;      /* Hides raw text overlay until focused */
     cursor: text;
     white-space: nowrap;
-    font-size: 11px;
+    overflow: hidden;
     font-family: sans-serif;
-    color: black;
-    pointer-events: auto; /* allow editing */
+    pointer-events: auto;    /* Captures mouse movements */
+    box-sizing: border-box;
+    transition: background 0.1s ease;
+}
+
+/* Reveal box smoothly on hover */
+.text-item:hover {
+    background: rgba(0, 120, 255, 0.15);
+    border: 1px dashed #0078ff;
+}
+
+/* When typing: turn solid white to mask the canvas text underneath */
+.text-item:focus {
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid #0078ff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    outline: none;
+    overflow: visible;
+    z-index: 100; /* Pulls active element to the front */
 }

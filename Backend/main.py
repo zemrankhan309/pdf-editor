@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
+import tempfile  # Added to find a safe location outside VS Code
 
 from services.pdf_extract import extract_text_objects
 from services.pdf_edit import apply_edits
@@ -16,7 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
+# FIXED: Uses your computer's temporary directory (completely hidden from VS Code).
+# Live Server will never see these files, meaning it will NEVER reload your page again!
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "pdf_editor_workspace")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
@@ -24,10 +27,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def upload_pdf(file: UploadFile = File(...)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
-    # Save file safely in chunks
     with open(file_path, "wb") as buffer:
         while True:
-            chunk = await file.read(1024 * 1024)  # 1MB chunks
+            chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
             buffer.write(chunk)
@@ -46,10 +48,8 @@ async def edit_pdf(payload: dict):
     file_path = payload["file_path"]
     edits = payload.get("edits", [])
     
-    # Generate a unique target filename output destination
     edited_pdf_path = file_path.replace(".pdf", "_edited.pdf")
     
-    # FIXED: Order of parameters updated to match the definition in pdf_edit.py
     apply_edits(edits, file_path, edited_pdf_path)
     
     return {"edited_pdf_path": edited_pdf_path}
@@ -58,3 +58,8 @@ async def edit_pdf(payload: dict):
 @app.get("/export")
 def export(path: str):
     return export_pdf(path)
+
+# Included server auto-run helper block
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

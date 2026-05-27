@@ -1,9 +1,15 @@
-// NO IMPORT STATEMENTS AT THE TOP (Fixes the Uncaught SyntaxError)
-console.log("CHECK:", document.getElementById("pdfUpload"));
 console.log("🔥 app.js loaded successfully");
 
 const backendUrl = "http://127.0.0.1:8000";
 
+// FIXES SILENT WORKER ENGINE CRASHES IN MODERN BROWSERS
+if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+} else {
+    console.error("CRITICAL: pdfjsLib is missing. Verify your HTML script tags.");
+}
+
+const pdfContainer = document.getElementById("pdfContainer");
 const pdfCanvas = document.getElementById("pdfCanvas");
 const ctx = pdfCanvas.getContext("2d");
 const textLayer = document.getElementById("textLayer");
@@ -11,33 +17,44 @@ const textLayer = document.getElementById("textLayer");
 let currentPdfPath = null;
 let textObjects = [];
 let editedObjects = [];
+const scale = 1.2; // Match your text coordinate scaling factor
 
 // ------------------------------
-// 1. Render PDF
+// 1. Render PDF safely with explicit dimensions
 // ------------------------------
 async function renderPDF(file) {
-    console.log("renderPDF() called");
+    try {
+        console.log("🔄 Starting PDF render engine sequence...");
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: scale });
 
-    const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        // FORCE fixed dimensions explicitly on elements to guarantee layout visibility
+        pdfCanvas.width = viewport.width;
+        pdfCanvas.height = viewport.height;
+        pdfCanvas.style.width = viewport.width + "px";
+        pdfCanvas.style.height = viewport.height + "px";
 
-    loadingTask.onProgress = (p) => console.log("PDF loading:", p.loaded);
+        pdfContainer.style.width = viewport.width + "px";
+        pdfContainer.style.height = viewport.height + "px";
 
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
+        textLayer.style.width = viewport.width + "px";
+        textLayer.style.height = viewport.height + "px";
 
-    const scale = 1.2;
-    const viewport = page.getViewport({ scale });
+        const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport
+        };
 
-    pdfCanvas.width = viewport.width;
-    pdfCanvas.height = viewport.height;
-
-    await page.render({
-        canvasContext: ctx,
-        viewport: viewport
-    }).promise;
-
-    console.log("PDF rendered successfully");
+        await page.render(renderContext).promise;
+        console.log("✅ PDF successfully drawn onto canvas framework.");
+    } catch (error) {
+        console.error("❌ Rendering chain break:", error);
+        alert("Failed to render PDF framework: " + error.message);
+    }
 }
 
 // ------------------------------
@@ -59,37 +76,39 @@ function renderTextObjects() {
         div.contentEditable = true;
         div.innerText = obj.text;
 
+        // Coordinates and Dimensions
         div.style.left = (obj.x * scale) + "px";
         div.style.top = (obj.y * scale) + "px";
         div.style.width = (obj.width * scale) + "px";
         div.style.height = (obj.height * scale) + "px";
+        
+        // DYNAMIC FONT SCALING (Prevents text overlapping)
+        div.style.fontSize = (obj.size * scale) + "px";
+        div.style.lineHeight = "1";
 
         div.oninput = () => {
-            // FIXED: Key names rewritten to support backend parser expectations
             editedObjects[index] = {
                 page: obj.page,
                 x: obj.x,
                 y: obj.y,
-                width: obj.width,
-                height: obj.height,
-                text: div.innerText
+                text: div.innerText // Keeps object mapping clean for backend
             };
         };
 
         textLayer.appendChild(div);
     });
 
-    console.log("Overlay rendered:", textObjects.length);
+    console.log("Overlay rendered safely:", textObjects.length);
 }
 
 // ------------------------------
-// 3. Upload PDF
+// 3. Upload Event Listener
 // ------------------------------
 document.getElementById("pdfUpload").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    console.log("📂 Selected file:", file.name);
+    console.log("📂 File target selected:", file.name);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -100,20 +119,24 @@ document.getElementById("pdfUpload").addEventListener("change", async (event) =>
             body: formData
         });
 
+        if (!res.ok) {
+            throw new Error(`Server responded with status ${res.status}`);
+        }
+
         const data = await res.json();
         currentPdfPath = data.file_path;
         textObjects = data.text_objects;
-        editedObjects = new Array(textObjects.length).fill(null); // Initialize clean tracker array
+        editedObjects = new Array(textObjects.length).fill(null);
 
-        console.log("BACKEND RESPONSE:", data);
+        console.log("📦 Payload metadata loaded:", data);
 
-        // Render PDF background image layer
+        // Run rendering safely
         await renderPDF(file);
-
-        // Render editable dynamic overlay layer boxes
         renderTextObjects();
+
     } catch (err) {
-        console.error("Upload error connection failure:", err);
+        console.error("❌ Processing pipeline broke:", err);
+        alert("Upload processing exception: " + err.message);
     }
 });
 
@@ -122,11 +145,10 @@ document.getElementById("pdfUpload").addEventListener("change", async (event) =>
 // ------------------------------
 document.getElementById("saveEdits").addEventListener("click", async () => {
     if (!currentPdfPath) {
-        alert("Upload a PDF first.");
+        alert("Please upload a PDF file first.");
         return;
     }
 
-    // Filter out array indices that weren't changed
     const cleanEdits = editedObjects.filter(item => item !== null);
 
     const payload = {
@@ -134,16 +156,21 @@ document.getElementById("saveEdits").addEventListener("click", async () => {
         edits: cleanEdits
     };
 
-    const res = await fetch(`${backendUrl}/edit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
+    try {
+        const res = await fetch(`${backendUrl}/edit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
-    const data = await res.json();
-    window.editedPdfPath = data.edited_pdf_path;
+        if (!res.ok) throw new Error("Server rejected save operation layout metadata.");
 
-    alert("Edits saved! Ready to download.");
+        const data = await res.json();
+        window.editedPdfPath = data.edited_pdf_path;
+        alert("Edits saved successfully!");
+    } catch (err) {
+        alert("Error saving modifications: " + err.message);
+    }
 });
 
 // ------------------------------
@@ -151,9 +178,8 @@ document.getElementById("saveEdits").addEventListener("click", async () => {
 // ------------------------------
 document.getElementById("downloadPdf").addEventListener("click", () => {
     if (!window.editedPdfPath) {
-        alert("Save edits first.");
+        alert("Please save layout edits before downloading.");
         return;
     }
-
     window.location.href = `${backendUrl}/export?path=${encodeURIComponent(window.editedPdfPath)}`;
 });
